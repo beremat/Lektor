@@ -175,7 +175,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
 
         /**
          * Returns a new instance of this fragment for the given section
-         * number.
+         * number
          */
         public static RecordFragment newInstance(int sectionNumber) {
             RecordFragment fragment = new RecordFragment();
