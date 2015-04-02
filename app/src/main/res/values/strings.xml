@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Lektor</string>
+
+
+    <string name="title_section1">Record</string>
+    <string name="title_section2">Listen</string>
+    <string name="title_section3">Organize</string>
+
+    <string name="hello_world">Hello world!</string>
+
+    <string name="action_settings">Settings</string>
+</resources>
