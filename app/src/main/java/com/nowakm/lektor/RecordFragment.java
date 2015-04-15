@@ -27,11 +27,18 @@ public class RecordFragment extends Fragment {
     static boolean fancyButton = true;
     static boolean recorderInit = false;
     static int amplitude;
-
+    static int maxAmplitude = 0;
+    static long lastMaxAmplitude;
+    float normalizationFactor = 1.0f;
+    float prevNormalizationFactor = 1.0f;
     // begin user-customizable settings
-    static boolean normalizeAmplitude = false;
-    static int STATUS_UPDATE_FREQ = 10;
-    static int BUTTON_DRAW_FREQ = 30;
+
+    static boolean normalizeAmplitude = true;
+    static boolean rescaleNormalizedAmplitude = true;
+    static int STATUS_UPDATE_FREQ = 10; //frames per second
+    static int BUTTON_DRAW_FREQ = 30;   //frames per second
+    static int RESCALING_INTERVAL = 15; //seconds
+
     /**
      * The fragment argument representing the section number for this
      * fragment
@@ -73,6 +80,7 @@ public class RecordFragment extends Fragment {
                     new Thread(new Runnable() {
                         public void run() {
                             timeCounter = new TimeCounter();
+                            lastMaxAmplitude = timeCounter.getTimePassed();
                             while (recording) {
                                 MainActivity.runOnUI(new Runnable() {
                                     @Override
@@ -134,11 +142,35 @@ public class RecordFragment extends Fragment {
                                             MainActivity.runOnUI(new Runnable() {
                                                 @Override
                                                 public void run() {
-                                                    buttonClipper.setLevel((int)(amplitude/3.2767));
+                                                    if (normalizeAmplitude && amplitude > maxAmplitude) {
+                                                        maxAmplitude = amplitude;
+                                                        prevNormalizationFactor = normalizationFactor;
+                                                        normalizationFactor = 32767 / maxAmplitude;
+                                                        lastMaxAmplitude = timeCounter.getTimePassed();
+                                                    }
+                                                    //maximum value returned by getMaxAmplitude() is 32767; max value of setLevel is 10000
+                                                    if (normalizeAmplitude)
+                                                        buttonClipper.setLevel((int)((amplitude*normalizationFactor)/3.2767));
+                                                    else
+                                                        buttonClipper.setLevel((int)(amplitude/3.2767));
                                                 }
                                             });
                                         Thread.sleep(1000 / BUTTON_DRAW_FREQ);
                                     }
+                                }
+                                catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }).start();
+                    }
+
+                    //thread to handle rescaling of normalization
+                    if (rescaleNormalizedAmplitude) {
+                        new Thread(new Runnable() {
+                            public void run() {
+                                try {
+                                    normalizeAmplitudeRescaler();
                                 }
                                 catch (InterruptedException e) {
                                     e.printStackTrace();
@@ -159,5 +191,19 @@ public class RecordFragment extends Fragment {
             }
         });
         return rootView;
+    }
+
+    public void normalizeAmplitudeRescaler() throws InterruptedException {
+        while (recording) {
+            Thread.sleep(1000);
+            if (lastMaxAmplitude - timeCounter.getTimePassed() > RESCALING_INTERVAL*1000) {
+                if (normalizationFactor == prevNormalizationFactor) {
+                    normalizationFactor /= 2;
+                    prevNormalizationFactor /= 2;
+                }
+                else
+                    normalizationFactor = prevNormalizationFactor;
+            }
+        }
     }
 }
