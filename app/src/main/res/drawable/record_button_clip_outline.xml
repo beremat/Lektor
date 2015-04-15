@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item android:id="@+id/button_clip">
+        <clip
+            xmlns:android="http://schemas.android.com/apk/res/android"
+            android:drawable="@drawable/record_button_active"
+            android:clipOrientation="vertical"
+            android:gravity="bottom"
+            />
+    </item>
+    <item>
+        <shape xmlns:android="http://schemas.android.com/apk/res/android"
+            android:shape="oval"
+            android:width="240dp"
+            android:height="240dp">
+            <stroke
+                android:width="1dip"
+                android:color="#50C0E9"/>
+        </shape>
+    </item>
+</layer-list>

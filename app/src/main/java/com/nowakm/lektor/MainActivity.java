@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Locale;
 import android.content.Context;
+import android.graphics.drawable.ClipDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.media.MediaRecorder;
 import android.os.Environment;
 import android.os.Handler;
@@ -28,12 +30,9 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
     SectionsPagerAdapter mSectionsPagerAdapter;
     ViewPager mViewPager;
     static TextView recordStatus;
-    static boolean recording = false;
     public static Handler UIHandler = new Handler();
-    static TimeCounter timeCounter;
-    static MediaRecorder recorder;
     static Context appContext;
-    static String recordingFileName = "test.3gp";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -161,99 +160,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         }
     }
 
-    public static class RecordFragment extends Fragment {
-        /**
-         * The fragment argument representing the section number for this
-         * fragment
-         */
-        private static final String ARG_SECTION_NUMBER = "section_number";
 
-        /**
-         * Returns a new instance of this fragment for the given section
-         * number
-         */
-        public static RecordFragment newInstance(int sectionNumber) {
-            RecordFragment fragment = new RecordFragment();
-            Bundle args = new Bundle();
-            args.putInt(ARG_SECTION_NUMBER, sectionNumber);
-            fragment.setArguments(args);
-            return fragment;
-        }
-
-        public RecordFragment() {
-        }
-
-        @Override
-        public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                                 Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_record, container, false);
-            recordStatus = (TextView)rootView.findViewById(R.id.record_status_text);
-            final ImageView recordButton = (ImageView)rootView.findViewById(R.id.record_button);
-            recordButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    recording = !recording;
-                    if (recording) {
-                        recordButton.setImageResource(R.drawable.record_button_active);
-                        new Thread(new Runnable() {
-                            public void run() {
-                                timeCounter = new TimeCounter();
-                                while (recording) {
-                                    runOnUI(new Runnable() {
-                                        @Override
-                                        public void run() {
-                                             recordStatus.setText(timeCounter.getFormattedTimePassed());
-                                        }
-                                    });
-                                    try {
-                                        Thread.sleep(100);
-                                    }
-                                    catch (InterruptedException e){
-                                        e.printStackTrace();
-                                    }
-                                }
-                            }
-                        }).start();
-                        new Thread(new Runnable() {
-                            public void run() {
-                                recorder = new MediaRecorder();
-                                recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-                                recorder.setAudioChannels(1);
-                                String filesDir = Environment.getExternalStorageDirectory().getAbsolutePath();
-                                filesDir += "/Android/data/";
-                                filesDir += appContext.getPackageName();
-                                File storageDir = new File(filesDir);
-                                if (!storageDir.exists()) {
-                                    storageDir.mkdir();
-                                    System.out.println("Created public storage directory: "+filesDir);
-                                }
-                                else
-                                    System.out.println("Public storage directory already exists: " + filesDir);
-                                recorder.setOutputFile(filesDir+"/"+recordingFileName);
-                                recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-                                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_WB);
-                                try {
-                                    recorder.prepare();
-                                    recorder.start();
-                                }
-                                catch (IOException e) {
-                                    e.printStackTrace();
-                                }
-                            }
-                        }).start();
-                    }
-                    if (!recording) {
-                        recordButton.setImageResource(R.drawable.record_button);
-                        recorder.stop();
-                        recorder.reset();
-                        recorder.release();
-                        recorder = null;
-                    }
-                }
-            });
-            return rootView;
-        }
-    }
 
     public static class ListenFragment extends Fragment {
         /**
