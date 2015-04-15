@@ -1,9 +1,12 @@
 package com.nowakm.lektor;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Locale;
-
+import android.content.Context;
+import android.media.MediaRecorder;
+import android.os.Environment;
 import android.os.Handler;
-import android.os.SystemClock;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v7.app.ActionBar;
 import android.support.v4.app.Fragment;
@@ -17,32 +20,20 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 
 public class MainActivity extends ActionBarActivity implements ActionBar.TabListener {
-
-    /**
-     * The {@link android.support.v4.view.PagerAdapter} that will provide
-     * fragments for each of the sections. We use a
-     * {@link FragmentPagerAdapter} derivative, which will keep every
-     * loaded fragment in memory. If this becomes too memory intensive, it
-     * may be best to switch to a
-     * {@link android.support.v4.app.FragmentStatePagerAdapter}.
-     */
     SectionsPagerAdapter mSectionsPagerAdapter;
-
-    /**
-     * The {@link ViewPager} that will host the section contents.
-     */
     ViewPager mViewPager;
     static TextView recordStatus;
     static boolean recording = false;
     public static Handler UIHandler = new Handler();
     static TimeCounter timeCounter;
-
+    static MediaRecorder recorder;
+    static Context appContext;
+    static String recordingFileName = "test.3gp";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -52,6 +43,8 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         final ActionBar actionBar = getSupportActionBar();
         actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_TABS);
 
+        appContext = getApplicationContext();
+
         // Create the adapter that will return a fragment for each of the three
         // primary sections of the activity.
         mSectionsPagerAdapter = new SectionsPagerAdapter(getSupportFragmentManager());
@@ -59,6 +52,8 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         // Set up the ViewPager with the sections adapter.
         mViewPager = (ViewPager) findViewById(R.id.pager);
         mViewPager.setAdapter(mSectionsPagerAdapter);
+
+        //Don't remove any fragments from memory when swiping away
         mViewPager.setOffscreenPageLimit(2);
 
         // When swiping between different sections, select the corresponding
@@ -194,41 +189,68 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
             View rootView = inflater.inflate(R.layout.fragment_record, container, false);
             recordStatus = (TextView)rootView.findViewById(R.id.record_status_text);
             final ImageView recordButton = (ImageView)rootView.findViewById(R.id.record_button);
-            /* TODO: Re-implement using ScheduledThreadPoolExecutor (see http://developer.android.com/reference/java/util/concurrent/ScheduledThreadPoolExecutor.html)
-            final Thread t = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        MainActivity.timeCounter = new TimeCounter();
-                        while (!isInterrupted()) {
-                            Thread.sleep(100);
-                            runOnUI(new Runnable() {
-                                @Override
-                                public void run() {
-                                    recordStatus.setText(MainActivity.timeCounter.getFormattedTimePassed());
-                                }
-                            });
-                        }
-                    } catch (InterruptedException e) {
-                        System.out.print(e.getStackTrace());
-                    }
-                }
-            };
             recordButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     recording = !recording;
                     if (recording) {
-                        t.start();
                         recordButton.setImageResource(R.drawable.record_button_active);
+                        new Thread(new Runnable() {
+                            public void run() {
+                                timeCounter = new TimeCounter();
+                                while (recording) {
+                                    runOnUI(new Runnable() {
+                                        @Override
+                                        public void run() {
+                                             recordStatus.setText(timeCounter.getFormattedTimePassed());
+                                        }
+                                    });
+                                    try {
+                                        Thread.sleep(100);
+                                    }
+                                    catch (InterruptedException e){
+                                        e.printStackTrace();
+                                    }
+                                }
+                            }
+                        }).start();
+                        new Thread(new Runnable() {
+                            public void run() {
+                                recorder = new MediaRecorder();
+                                recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                                recorder.setAudioChannels(1);
+                                String filesDir = Environment.getExternalStorageDirectory().getAbsolutePath();
+                                filesDir += "/Android/data/";
+                                filesDir += appContext.getPackageName();
+                                File storageDir = new File(filesDir);
+                                if (!storageDir.exists()) {
+                                    storageDir.mkdir();
+                                    System.out.println("Created public storage directory: "+filesDir);
+                                }
+                                else
+                                    System.out.println("Public storage directory already exists: " + filesDir);
+                                recorder.setOutputFile(filesDir+"/"+recordingFileName);
+                                recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                                recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_WB);
+                                try {
+                                    recorder.prepare();
+                                    recorder.start();
+                                }
+                                catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }).start();
                     }
-                    else {
-                        t.interrupt();
+                    if (!recording) {
                         recordButton.setImageResource(R.drawable.record_button);
-
+                        recorder.stop();
+                        recorder.reset();
+                        recorder.release();
+                        recorder = null;
                     }
                 }
-            }); */
+            });
             return rootView;
         }
     }
@@ -258,8 +280,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_listen, container, false);
-            return rootView;
+            return inflater.inflate(R.layout.fragment_listen, container, false);
         }
     }
 
@@ -288,8 +309,7 @@ public class MainActivity extends ActionBarActivity implements ActionBar.TabList
         @Override
         public View onCreateView(LayoutInflater inflater, ViewGroup container,
                                  Bundle savedInstanceState) {
-            View rootView = inflater.inflate(R.layout.fragment_organize, container, false);
-            return rootView;
+            return inflater.inflate(R.layout.fragment_organize, container, false);
         }
     }
 
