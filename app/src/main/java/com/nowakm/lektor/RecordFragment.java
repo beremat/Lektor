@@ -31,13 +31,17 @@ public class RecordFragment extends Fragment {
     static long lastMaxAmplitude;
     float normalizationFactor = 1.0f;
     float prevNormalizationFactor = 1.0f;
-    // begin user-customizable settings
+    int[] smoothSamples = new int[SAMPLES_TO_CONSIDER];
+    int sampleIndex = 0;
 
+    // begin user-customizable settings
     static boolean normalizeAmplitude = true;
     static boolean rescaleNormalizedAmplitude = true;
+    static boolean smoothAmplitudeDisplay = true;
     static int STATUS_UPDATE_FREQ = 10; //frames per second
     static int BUTTON_DRAW_FREQ = 30;   //frames per second
     static int RESCALING_INTERVAL = 15; //seconds
+    static int SAMPLES_TO_CONSIDER = 20;
 
     /**
      * The fragment argument representing the section number for this
@@ -120,6 +124,9 @@ public class RecordFragment extends Fragment {
                                 recorder.prepare();
                                 recorder.start();
                                 recorderInit = true;
+                                prevNormalizationFactor = 1.0f;
+                                normalizationFactor = 1.0f;
+                                maxAmplitude = 0;
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -148,11 +155,23 @@ public class RecordFragment extends Fragment {
                                                         normalizationFactor = 32767 / maxAmplitude;
                                                         lastMaxAmplitude = timeCounter.getTimePassed();
                                                     }
+                                                    if (smoothAmplitudeDisplay) {
+                                                        if (normalizeAmplitude)
+                                                            smoothSamples[sampleIndex] = (int)(amplitude*normalizationFactor);
+                                                        else
+                                                            smoothSamples[sampleIndex] = amplitude;
+                                                        sampleIndex++;
+                                                        if (sampleIndex == SAMPLES_TO_CONSIDER)
+                                                            sampleIndex = 0;
+                                                        amplitude = 0;
+                                                        for (int i : smoothSamples)
+                                                            amplitude += i;
+                                                        amplitude /= SAMPLES_TO_CONSIDER;
+                                                    }
+                                                    else if (normalizeAmplitude)
+                                                        amplitude *= normalizationFactor;
                                                     //maximum value returned by getMaxAmplitude() is 32767; max value of setLevel is 10000
-                                                    if (normalizeAmplitude)
-                                                        buttonClipper.setLevel((int)((amplitude*normalizationFactor)/3.2767));
-                                                    else
-                                                        buttonClipper.setLevel((int)(amplitude/3.2767));
+                                                    buttonClipper.setLevel((int)(amplitude/3.2767));
                                                 }
                                             });
                                         Thread.sleep(1000 / BUTTON_DRAW_FREQ);
@@ -193,16 +212,21 @@ public class RecordFragment extends Fragment {
         return rootView;
     }
 
+    // TODO: debug and fix the normalization rescaler
     public void normalizeAmplitudeRescaler() throws InterruptedException {
         while (recording) {
             Thread.sleep(1000);
-            if (lastMaxAmplitude - timeCounter.getTimePassed() > RESCALING_INTERVAL*1000) {
+            if (timeCounter.getTimePassed() - lastMaxAmplitude > RESCALING_INTERVAL*1000) {
                 if (normalizationFactor == prevNormalizationFactor) {
-                    normalizationFactor /= 2;
-                    prevNormalizationFactor /= 2;
+                    normalizationFactor *= 2;
+                    prevNormalizationFactor *= 2;
+                    maxAmplitude /= 2;
+                    lastMaxAmplitude = timeCounter.getTimePassed();
                 }
-                else
+                else {
                     normalizationFactor = prevNormalizationFactor;
+                    maxAmplitude *= normalizationFactor / prevNormalizationFactor;
+                }
             }
         }
     }
