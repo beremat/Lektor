@@ -19,29 +19,28 @@ import java.io.IOException;
  * Created by Marcin on 4/15/2015.
  */
 public class RecordFragment extends Fragment {
+    // begin user-customizable settings
+    static boolean ENABLE_AMPLITUDE_NORMALIZATION = true;
+    static boolean ENABLE_NORMALIZATION_RESCALING = true;
+    static boolean ENABLE_SMOOTH_AMPLITUDE_DISPLAY = true;
+    static int STATUS_UPDATE_FREQ = 10; //frames per second
+    static int BUTTON_DRAW_FREQ = 30;   //frames per second
+    static int RESCALING_INTERVAL = 15; //seconds
+    static int SAMPLES_TO_CONSIDER = 20;
+    static boolean ENABLE_FANCY_BUTTON = true;
 
     static boolean recording = false;
     static TimeCounter timeCounter;
     static MediaRecorder recorder;
     static String recordingFileName = "test.3gp";
-    static boolean fancyButton = true;
     static boolean recorderInit = false;
     static int amplitude;
     static int maxAmplitude = 0;
     static long lastMaxAmplitude;
-    float normalizationFactor = 1.0f;
-    float prevNormalizationFactor = 1.0f;
-    int[] smoothSamples = new int[SAMPLES_TO_CONSIDER];
-    int sampleIndex = 0;
-
-    // begin user-customizable settings
-    static boolean normalizeAmplitude = true;
-    static boolean rescaleNormalizedAmplitude = true;
-    static boolean smoothAmplitudeDisplay = true;
-    static int STATUS_UPDATE_FREQ = 10; //frames per second
-    static int BUTTON_DRAW_FREQ = 30;   //frames per second
-    static int RESCALING_INTERVAL = 15; //seconds
-    static int SAMPLES_TO_CONSIDER = 20;
+    static float normalizationFactor = 1.0f;
+    static float prevNormalizationFactor = 1.0f;
+    static int[] smoothSamples = new int[SAMPLES_TO_CONSIDER];
+    static int sampleIndex = 0;
 
     /**
      * The fragment argument representing the section number for this
@@ -75,7 +74,7 @@ public class RecordFragment extends Fragment {
             public void onClick(View v) {
                 recording = !recording;
                 if (recording) {
-                    if (fancyButton)
+                    if (ENABLE_FANCY_BUTTON)
                         recordButton.setImageResource(R.drawable.record_button_clip_outline);
                     else
                         recordButton.setImageResource(R.drawable.record_button_active);
@@ -134,7 +133,7 @@ public class RecordFragment extends Fragment {
                     }).start();
 
                     //thread to handle fancy button FX
-                    if (fancyButton) {
+                    if (ENABLE_FANCY_BUTTON) {
                         new Thread(new Runnable() {
                             public void run() {
                                 try {
@@ -149,14 +148,14 @@ public class RecordFragment extends Fragment {
                                             MainActivity.runOnUI(new Runnable() {
                                                 @Override
                                                 public void run() {
-                                                    if (normalizeAmplitude && amplitude > maxAmplitude) {
+                                                    if (ENABLE_AMPLITUDE_NORMALIZATION && amplitude > maxAmplitude) {
                                                         maxAmplitude = amplitude;
                                                         prevNormalizationFactor = normalizationFactor;
                                                         normalizationFactor = 32767 / maxAmplitude;
                                                         lastMaxAmplitude = timeCounter.getTimePassed();
                                                     }
-                                                    if (smoothAmplitudeDisplay) {
-                                                        if (normalizeAmplitude)
+                                                    if (ENABLE_SMOOTH_AMPLITUDE_DISPLAY) {
+                                                        if (ENABLE_AMPLITUDE_NORMALIZATION)
                                                             smoothSamples[sampleIndex] = (int)(amplitude*normalizationFactor);
                                                         else
                                                             smoothSamples[sampleIndex] = amplitude;
@@ -168,7 +167,7 @@ public class RecordFragment extends Fragment {
                                                             amplitude += i;
                                                         amplitude /= SAMPLES_TO_CONSIDER;
                                                     }
-                                                    else if (normalizeAmplitude)
+                                                    else if (ENABLE_AMPLITUDE_NORMALIZATION)
                                                         amplitude *= normalizationFactor;
                                                     //maximum value returned by getMaxAmplitude() is 32767; max value of setLevel is 10000
                                                     buttonClipper.setLevel((int)(amplitude/3.2767));
@@ -185,7 +184,7 @@ public class RecordFragment extends Fragment {
                     }
 
                     //thread to handle rescaling of normalization
-                    if (rescaleNormalizedAmplitude) {
+                    if (ENABLE_NORMALIZATION_RESCALING) {
                         new Thread(new Runnable() {
                             public void run() {
                                 try {
